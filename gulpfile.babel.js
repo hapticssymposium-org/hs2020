@@ -1,12 +1,11 @@
 import gulp from "gulp";
 import cp from "child_process";
-import gutil from "gulp-util";
 import postcss from "gulp-postcss";
 import cssImport from "postcss-import";
 import cssnext from "postcss-cssnext";
 import BrowserSync from "browser-sync";
 import webpack from "webpack";
-import webpackConfig from "./webpack.conf";
+import webpackConfig from "./webpack.conf.js";
 import svgstore from "gulp-svgstore";
 import svgmin from "gulp-svgmin";
 import inject from "gulp-inject";
@@ -15,78 +14,61 @@ import cssnano from "cssnano";
 const browserSync = BrowserSync.create();
 const defaultArgs = ["-d", "../dist", "-s", "site"];
 
-var hugoBin = `./bin/hugo.${process.platform === "win32" ? "exe" : process.platform}`;
+let hugoBin = `./bin/hugo.${process.platform === "win32" ? "exe" : process.platform}`;
+if (process.env.HUGO_VERSION) hugoBin = "hugo";
+if (process.env.DEBUG) defaultArgs.unshift("--debug");
 
-if (process.env.HUGO_VERSION) {
-  hugoBin = "hugo";
-}
+export const hugo = (cb) => buildSite(cb);
+export const hugoPreview = (cb) => buildSite(cb, ["--buildDrafts", "--buildFuture"]);
 
-if (process.env.DEBUG) {
-  defaultArgs.unshift("--debug");
-}
-
-gulp.task("hugo", (cb) => buildSite(cb));
-gulp.task("hugo-preview", (cb) => buildSite(cb, ["--buildDrafts", "--buildFuture"]));
-gulp.task("build", ["css", "js", "hugo"]);
-gulp.task("build-preview", ["css", "js", "hugo-preview"]);
-
-gulp.task("css", () => (
+export const css = () => (
   gulp.src("./src/css/*.css")
     .pipe(postcss([
-      cssImport({from: "./src/css/main.css"}),
+      cssImport({ from: "./src/css/main.css" }),
       cssnext(),
       cssnano(),
     ]))
     .pipe(gulp.dest("./dist/css"))
     .pipe(browserSync.stream())
-));
+);
 
-gulp.task("js", (cb) => {
-  const myConfig = Object.assign({}, webpackConfig);
-
-  webpack(myConfig, (err, stats) => {
-    if (err) throw new gutil.PluginError("webpack", err);
-    gutil.log("[webpack]", stats.toString({
-      colors: true,
-      progress: true
-    }));
+export const js = (cb) => {
+  webpack(webpackConfig, (err, stats) => {
+    if (err) return cb(err);
+    console.log(stats.toString({ colors: true, progress: true }));
     browserSync.reload();
     cb();
   });
-});
+};
 
-gulp.task("svg", () => {
+export const svg = () => {
   const svgs = gulp
     .src("site/static/img/icons-*.svg")
     .pipe(svgmin())
-    .pipe(svgstore({inlineSvg: true}));
+    .pipe(svgstore({ inlineSvg: true }));
 
-  function fileContents(filePath, file) {
-    return file.contents.toString();
-  }
+  const fileContents = (filePath, file) => file.contents.toString();
 
   return gulp
     .src("site/layouts/partials/svg.html")
-    .pipe(inject(svgs, {transform: fileContents}))
+    .pipe(inject(svgs, { transform: fileContents }))
     .pipe(gulp.dest("site/layouts/partials/"));
-});
+};
 
-gulp.task("server", ["hugo", "css", "js", "svg"], () => {
-  browserSync.init({
-    server: {
-      baseDir: "./dist"
-    }
-  });
-  gulp.watch("./src/js/**/*.js", ["js"]);
-  gulp.watch("./src/css/**/*.css", ["css"]);
-  gulp.watch("./site/static/img/icons-*.svg", ["svg"]);
-  gulp.watch("./site/**/*", ["hugo"]);
+export const build = gulp.series(gulp.parallel(css, js, svg), hugo);
+export const buildPreview = gulp.series(gulp.parallel(css, js, svg), hugoPreview);
+
+export const server = gulp.series(build, () => {
+  browserSync.init({ server: { baseDir: "./dist" } });
+  gulp.watch("./src/js/**/*.js", js);
+  gulp.watch("./src/css/**/*.css", css);
+  gulp.watch("./site/static/img/icons-*.svg", svg);
+  gulp.watch("./site/**/*", hugo);
 });
 
 function buildSite(cb, options) {
   const args = options ? defaultArgs.concat(options) : defaultArgs;
-
-  return cp.spawn(hugoBin, args, {stdio: "inherit"}).on("close", (code) => {
+  return cp.spawn(hugoBin, args, { stdio: "inherit" }).on("close", (code) => {
     if (code === 0) {
       browserSync.reload("notify:false");
       cb();
