@@ -12,7 +12,7 @@ import inject from "gulp-inject";
 import cssnano from "cssnano";
 
 const browserSync = BrowserSync.create();
-const defaultArgs = ["-d", "../dist", "-s", "site"];
+const defaultArgs = ["-d", "../dist", "-s", "site", "--config", "config.toml"];
 
 let hugoBin = `./bin/hugo.${process.platform === "win32" ? "exe" : process.platform}`;
 if (process.env.HUGO_VERSION) hugoBin = "hugo";
