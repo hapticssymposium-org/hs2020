@@ -57,3 +57,8 @@
     "svg-sprite-loader": "^3.0.0"
   }
 }
+
+"engines": {
+  "hugo": "0.146.5",
+  "node": "16"
+}
