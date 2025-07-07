@@ -8,3 +8,7 @@ copyright = "IEEE Haptics Symposium 2020. Theme adapted from Netlify CMS."
     conferenceDate = "March 28 - 31, 2020"
     conferenceLocation = "Washington, DC"
 
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true

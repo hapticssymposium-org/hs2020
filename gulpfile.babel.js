@@ -68,6 +68,7 @@ export const server = gulp.series(build, () => {
 
 function buildSite(cb, options) {
   const args = options ? defaultArgs.concat(options) : defaultArgs;
+  console.log("Running Hugo with arguments:", args); // ← 追加
   return cp.spawn(hugoBin, args, { stdio: "inherit" }).on("close", (code) => {
     if (code === 0) {
       browserSync.reload("notify:false");
